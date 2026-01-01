@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
-import { getUserTracks, getUserPlaylists, uploadUserTrack, createPlaylist, deletePlaylist, getPlaylistTracks, removeTrackFromPlaylist } from '../lib/api'
+import { getUserTracks, getUserPlaylists, uploadUserTrack, createPlaylist, deletePlaylist, getPlaylistTracks, removeTrackFromPlaylist, addTrackToPlaylist } from '../lib/api'
 import { supabase } from '../lib/supabase'
-import { Plus, Upload, Trash2, FolderPlus, Play, Loader2, ArrowLeft, MoreHorizontal, FileAudio } from 'lucide-react'
+import { Plus, Upload, Trash2, FolderPlus, Play, Loader2, ArrowLeft, MoreHorizontal, FileAudio, Search } from 'lucide-react'
 import { usePlayer } from '../contexts/PlayerContext'
 
 export default function Library() {
@@ -14,6 +14,9 @@ export default function Library() {
   const [activeView, setActiveView] = useState('main') 
   const [selectedPlaylist, setSelectedPlaylist] = useState(null)
   const [playlistTracks, setPlaylistTracks] = useState([])
+  
+  // Search State
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Upload State
   const [isUploading, setIsUploading] = useState(false)
@@ -32,8 +35,8 @@ export default function Library() {
   const refreshMainData = async (uid) => {
     try {
       const [t, p] = await Promise.all([getUserTracks(uid), getUserPlaylists(uid)])
-      setTracks(t || []) // Ensure array
-      setPlaylists(p || []) // Ensure array
+      setTracks(t || [])
+      setPlaylists(p || [])
     } finally {
       setLoading(false)
     }
@@ -43,6 +46,7 @@ export default function Library() {
     setLoading(true)
     setSelectedPlaylist(playlist)
     setActiveView('playlist')
+    setSearchQuery('')
     const pTracks = await getPlaylistTracks(playlist.id)
     setPlaylistTracks(pTracks || [])
     setLoading(false)
@@ -70,13 +74,19 @@ export default function Library() {
     refreshMainData(user.id)
   }
 
+  // Filter Helper
+  const filterList = (list) => {
+      if(!searchQuery) return list
+      return list.filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase()) || t.artist.toLowerCase().includes(searchQuery.toLowerCase()))
+  }
+
   if (loading && !user) return <div className="flex justify-center p-10"><Loader2 className="animate-spin text-purple-500"/></div>
 
   // --- PLAYLIST VIEW ---
   if (activeView === 'playlist' && selectedPlaylist) {
     return (
-      <div className="space-y-6 max-w-5xl mx-auto pb-40">
-        <button onClick={() => setActiveView('main')} className="flex items-center gap-2 text-zinc-400 hover:text-white transition">
+      <div className="space-y-6 max-w-5xl mx-auto">
+        <button onClick={() => { setActiveView('main'); setSearchQuery(''); }} className="flex items-center gap-2 text-zinc-400 hover:text-white transition">
           <ArrowLeft size={20} /> Back to Library
         </button>
         
@@ -90,10 +100,20 @@ export default function Library() {
           </div>
         </div>
 
+        {/* Search Bar */}
+        <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+            <input 
+                placeholder="Search in playlist..." 
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white focus:border-purple-500 outline-none"
+            />
+        </div>
+
         <div className="space-y-2">
             {playlistTracks.length === 0 && <p className="text-zinc-500 p-4">This playlist is empty.</p>}
-            {/* ✅ FIX: Added index to key to prevent duplicates */}
-            {playlistTracks.map((track, index) => (
+            {filterList(playlistTracks).map((track, index) => (
               <TrackRow 
                 key={`${track.id}-${index}`} 
                 track={track} 
@@ -111,7 +131,7 @@ export default function Library() {
 
   // --- MAIN LIBRARY VIEW ---
   return (
-    <div className="space-y-12 max-w-5xl mx-auto pb-40">
+    <div className="space-y-12 max-w-5xl mx-auto">
       
       {/* Upload */}
       <section className="bg-white/5 rounded-3xl p-8 border border-white/10">
@@ -176,11 +196,21 @@ export default function Library() {
 
       {/* Tracks */}
       <section>
-        <h2 className="text-xl font-bold text-zinc-400 mb-4">All Uploads</h2>
+        <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-zinc-400">All Uploads</h2>
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
+                <input 
+                    placeholder="Search uploads..." 
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="bg-white/5 border border-white/10 rounded-full pl-9 pr-4 py-1.5 text-sm text-white focus:border-purple-500 outline-none w-48"
+                />
+            </div>
+        </div>
         <div className="space-y-2">
           {tracks.length === 0 && <p className="text-zinc-500">No uploads yet.</p>}
-          {/* ✅ FIX: Added index to key to prevent duplicates */}
-          {tracks.map((track, index) => (
+          {filterList(tracks).map((track, index) => (
             <TrackRow 
                 key={`${track.id}-${index}`} 
                 track={track} 
@@ -210,7 +240,6 @@ const TrackRow = ({ track, playlists, inPlaylistMode = false, onRemove }) => {
 
   const handleAddToPlaylist = async (playlistId) => {
     try {
-        const { addTrackToPlaylist } = await import('../lib/api') 
         await addTrackToPlaylist(playlistId, track.id)
         alert(`Added to playlist!`)
     } catch(e) { console.error(e) }
@@ -220,7 +249,8 @@ const TrackRow = ({ track, playlists, inPlaylistMode = false, onRemove }) => {
   return (
     <div className="flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition group relative">
       <div onClick={() => actions.setTrack(track)} className="w-10 h-10 rounded-lg bg-zinc-800 overflow-hidden relative cursor-pointer flex-shrink-0">
-        <img src={track.thumbnail || '/default_cover.jpg'} className="w-full h-full object-cover opacity-60 group-hover:opacity-40" />
+        {/* USE track.artwork */}
+        <img src={track.artwork || '/default_cover.jpg'} className="w-full h-full object-cover opacity-60 group-hover:opacity-40" />
         <div className="absolute inset-0 flex items-center justify-center">
             <Play size={16} className="text-white fill-white" />
         </div>
