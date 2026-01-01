@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from 'react-router-dom'
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom' // ✅ Added useNavigate
 import { Home, Library, LogOut, Sparkles, X } from 'lucide-react'
 import AuroraWaves from './components/AuroraWaves' 
 import PlayerControls from './components/PlayerControls'
@@ -8,13 +8,26 @@ import { supabase } from './lib/supabase'
 export default function Layout() {
   const { state, actions } = usePlayer() 
   const location = useLocation()
-  
-  // Is the player visible?
+  const navigate = useNavigate() // ✅ For redirecting
   const showPlayer = state.currentTrack
 
-  // Function to close the player
   const closePlayer = () => {
     actions.setTrack(null) 
+  }
+
+  // ✅ FIX: Robust Sign Out Handler
+  const handleSignOut = async () => {
+    try {
+      // Try to tell Supabase to sign out
+      await supabase.auth.signOut()
+    } catch (error) {
+      console.error("Logout error:", error)
+    } finally {
+      // Whether it succeeded or failed (403), 
+      // WE MUST clear the UI and go to login.
+      navigate('/auth')
+      window.location.reload() // Optional: Force reload to clear any stuck memory
+    }
   }
 
   return (
@@ -44,8 +57,9 @@ export default function Layout() {
             <NavLink to="/library" icon={<Library size={20} />} label="My Library" active={location.pathname === '/library'} />
           </nav>
 
+          {/* ✅ FIX: Use the new handler here */}
           <button 
-            onClick={() => supabase.auth.signOut()} 
+            onClick={handleSignOut} 
             className="flex items-center gap-3 text-zinc-400 hover:text-white mt-auto p-3 rounded-xl hover:bg-white/5 transition"
           >
             <LogOut size={20} />
@@ -67,8 +81,7 @@ export default function Layout() {
            
            <PlayerControls />
 
-           {/* ✅ FIX: Moved AFTER PlayerControls and added z-[100] to sit on top */}
-           {/* Positioned at bottom-8 to align with standard player height */}
+           {/* Close Button */}
            <div className="absolute bottom-8 right-6 z-[100] md:right-10">
               <button 
                 onClick={closePlayer}

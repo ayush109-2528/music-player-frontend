@@ -1,22 +1,22 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useAuth } from "../contexts/AuthContext";
+import { useNavigate } from "react-router-dom"; // ✅ Added for redirection
 import { supabase } from "../lib/supabase";
-import { Eye, EyeOff, Sparkles, Wand2 } from "lucide-react"; // Added Wand2 for Magic Link
+import { Eye, EyeOff, Sparkles, Wand2, Loader2 } from "lucide-react"; 
 
-// --- UI COMPONENTS ---
+// --- UI COMPONENTS (Internal) ---
 
 const Button = React.forwardRef(({ className, variant = "default", size = "default", ...props }, ref) => {
-  const baseStyles = "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50";
+  const baseStyles = "inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-95";
   const variants = {
-    default: "bg-purple-600 text-white hover:bg-purple-700",
+    default: "bg-white text-black hover:bg-zinc-200",
     destructive: "bg-red-600 text-white hover:bg-red-700",
-    outline: "border border-zinc-700 bg-transparent hover:bg-zinc-800 text-white",
+    outline: "border border-zinc-700 bg-transparent hover:bg-zinc-900 text-white",
     secondary: "bg-zinc-800 text-white hover:bg-zinc-700",
     ghost: "hover:bg-zinc-800 hover:text-white",
     link: "text-purple-400 underline-offset-4 hover:underline",
   };
   const sizes = {
-    default: "h-10 px-4 py-2",
+    default: "h-12 px-6 py-2",
     sm: "h-9 rounded-md px-3",
     lg: "h-11 rounded-md px-8",
     icon: "h-10 w-10",
@@ -35,7 +35,7 @@ const Input = React.forwardRef(({ className, type, ...props }, ref) => {
   return (
     <input
       type={type}
-      className={`flex h-10 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-white ${className}`}
+      className={`flex h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900/50 px-4 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-zinc-600 focus-visible:outline-none focus-visible:border-purple-500 focus-visible:ring-1 focus-visible:ring-purple-500 disabled:cursor-not-allowed disabled:opacity-50 text-white transition-all ${className}`}
       ref={ref}
       {...props}
     />
@@ -46,21 +46,11 @@ Input.displayName = "Input";
 const Label = React.forwardRef(({ className, ...props }, ref) => (
   <label
     ref={ref}
-    className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-zinc-300 ${className}`}
+    className={`text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2 block ${className}`}
     {...props}
   />
 ));
 Label.displayName = "Label";
-
-const Checkbox = React.forwardRef(({ className, ...props }, ref) => (
-  <input
-    type="checkbox"
-    ref={ref}
-    className={`h-4 w-4 rounded border-zinc-700 bg-zinc-900 text-purple-600 focus:ring-purple-500 ${className}`}
-    {...props}
-  />
-));
-Checkbox.displayName = "Checkbox";
 
 // --- ANIMATION COMPONENTS ---
 
@@ -171,13 +161,14 @@ const EyeBall = ({ size = 48, pupilSize = 16, maxDistance = 10, eyeColor = "whit
 // --- MAIN AUTH PAGE ---
 
 export default function AuthPage() {
+  const navigate = useNavigate(); // ✅ Hook for redirection
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null); // Success Message
+  const [success, setSuccess] = useState(null);
 
   // Animation States
   const [mouseX, setMouseX] = useState(0);
@@ -270,13 +261,15 @@ export default function AuthPage() {
     setError(null);
     setSuccess(null);
 
-    // Artificial Delay for Animation Feel (1.5s)
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // Artificial Delay for Animation Feel (Reduced to 1s for better UX)
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     try {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        // ✅ Success! Redirect
+        navigate('/');
       } else {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
@@ -298,9 +291,6 @@ export default function AuthPage() {
     setError(null);
     setSuccess(null);
 
-    // Artificial Delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
     try {
       const { error } = await supabase.auth.signInWithOtp({ email });
       if (error) throw error;
@@ -320,9 +310,6 @@ export default function AuthPage() {
     setLoading(true);
     setError(null);
     setSuccess(null);
-
-    // Artificial Delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email);
@@ -462,7 +449,7 @@ export default function AuthPage() {
                 <button
                     type="button"
                     onClick={handleForgotPassword}
-                    className="text-xs text-purple-400 hover:text-purple-300 hover:underline"
+                    className="text-xs text-purple-400 hover:text-purple-300 hover:underline mb-2"
                 >
                     Forgot Password?
                 </button>
@@ -501,11 +488,17 @@ export default function AuthPage() {
             )}
 
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Processing..." : isLogin ? "Log in" : "Sign Up"}
+              {loading ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="animate-spin size-4" /> Processing...
+                </div>
+              ) : (
+                isLogin ? "Log in" : "Sign Up"
+              )}
             </Button>
           </form>
 
-          {/* MAGIC LINK BUTTON (Replaces Google) */}
+          {/* MAGIC LINK BUTTON */}
           <div className="mt-6">
             <Button 
                 variant="outline" 
